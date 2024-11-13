@@ -1,0 +1,33 @@
+/* src/styles.css */
+body {
+    font-family: 'Roboto', sans-serif;
+    background-color: #f4f4f4;
+    margin: 0;
+    padding: 0;
+  }
+  
+  .App {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  .MuiGrid-root {
+    display: flex;
+    justify-content: center;
+  }
+  
+  .MuiCard-root {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s;
+  }
+  
+  .MuiCard-root:hover {
+    transform: scale(1.05);
+  }
+  
+  .MuiCardMedia-root {
+    border-radius: 8px;
+  }
+  

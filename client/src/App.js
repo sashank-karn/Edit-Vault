@@ -5,41 +5,39 @@ import CssBaseline from '@mui/material/CssBaseline';
 import { lightTheme, darkTheme } from './theme/theme';
 import Navbar from './components/Navbar';
 
-// Import your page components (you'll need to create these)
-import Home from './pages/Home';
-import Login from './pages/Login';
-import Signup from './pages/Signup';
+// Import your page components
+import Home from './pages/HomePage';
 import Cart from './pages/Cart';
 import History from './pages/History';
-import Account from './pages/Account.js';
+
+// Import the CartProvider and useCart hook from your CartContext
+import { CartProvider } from './components/CartContext'; // Adjust the import path if needed
 
 function App() {
   const [isDarkMode, setIsDarkMode] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   const toggleTheme = () => {
     setIsDarkMode(!isDarkMode);
   };
 
   return (
-    <ThemeProvider theme={isDarkMode ? darkTheme : lightTheme}>
-      <CssBaseline />
-      <BrowserRouter>
-        <Navbar 
-          isLoggedIn={isLoggedIn} 
-          toggleTheme={toggleTheme} 
-          isDarkMode={isDarkMode}
-        />
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login setIsLoggedIn={setIsLoggedIn} />} />
-          <Route path="/signup" element={<Signup />} />
-          <Route path="/cart" element={<Cart />} />
-          <Route path="/history" element={<History />} />
-          <Route path="/account" element={<Account />} />
-        </Routes>
-      </BrowserRouter>
-    </ThemeProvider>
+    // Wrap the entire app with CartProvider to allow all components access to the cart context
+    <CartProvider>
+      <ThemeProvider theme={isDarkMode ? darkTheme : lightTheme}>
+        <CssBaseline />
+        <BrowserRouter>
+          <Navbar
+            isDarkMode={isDarkMode}
+            toggleTheme={toggleTheme}
+          />
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/cart" element={<Cart />} />
+            <Route path="/history" element={<History />} />
+          </Routes>
+        </BrowserRouter>
+      </ThemeProvider>
+    </CartProvider>
   );
 }
 

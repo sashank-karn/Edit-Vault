@@ -1,21 +1,18 @@
-import { createTheme } from '@mui/material';
+// theme.js
+
+import { createTheme } from '@mui/material/styles';
 
 export const lightTheme = createTheme({
   palette: {
     mode: 'light',
     primary: {
-      main: '#ff1744', // red
-      light: '#ff4569',
-      dark: '#b2102f',
-    },
-    secondary: {
-      main: '#2196f3', // blue
-      light: '#4dabf5',
-      dark: '#1769aa',
+      main: '#8B0000', // Dark red
     },
     background: {
-      default: '#ffffff',
-      paper: '#f5f5f5',
+      default: '#f0f0f0', // Light grey background for light mode
+    },
+    text: {
+      primary: '#000000', // Black text for light mode
     },
   },
 });
@@ -24,18 +21,13 @@ export const darkTheme = createTheme({
   palette: {
     mode: 'dark',
     primary: {
-      main: '#ff1744',
-      light: '#ff4569',
-      dark: '#b2102f',
-    },
-    secondary: {
-      main: '#2196f3',
-      light: '#4dabf5',
-      dark: '#1769aa',
+      main: '#8B0000', // Dark red
     },
     background: {
-      default: '#121212',
-      paper: '#1e1e1e',
+      default: '#303030', // Dark background for dark mode
+    },
+    text: {
+      primary: '#ffffff', // White text for dark mode
     },
   },
 });

@@ -4,39 +4,34 @@ import {
   Toolbar, 
   IconButton, 
   Typography, 
-  Menu,
-  MenuItem,
-  Box,
-  Button,
-  InputBase,
-  Paper
+  Box 
 } from '@mui/material';
 import { Link } from 'react-router-dom';
-import { 
-  Home, 
-  AccountCircle, 
-  ShoppingCart, 
-  History, 
-  Settings,
-  Search 
-} from '@mui/icons-material';
+import { WbSunny, NightsStay } from '@mui/icons-material'; 
+import { Home, ShoppingCart, History } from '@mui/icons-material';
 
 const Navbar = ({ isLoggedIn, toggleTheme, isDarkMode }) => {
-  const [settingsAnchor, setSettingsAnchor] = React.useState(null);
-
-  const handleSettingsMenu = (event) => {
-    setSettingsAnchor(event.currentTarget);
-  };
-
-  const handleSettingsClose = () => {
-    setSettingsAnchor(null);
-  };
-
   return (
-    <AppBar position="static">
+    <AppBar 
+      position="static" 
+      sx={{ 
+        backgroundColor: '#8B0000', // Dark blood red color for the background
+      }}
+    >
       <Toolbar>
-        <Typography variant="h6" sx={{ minWidth: '120px' }}>
-          Edit Vault
+        <Typography 
+          variant="h6" 
+          component={Link}  // Wrap the Typography with Link
+          to="/"            // Set the link to home
+          sx={{ 
+            minWidth: '120px', 
+            fontFamily: '"Pacifico", cursive', // Applying the Pacifico font
+            color: isDarkMode ? 'white' : 'black', // Font color changes based on theme
+            fontSize: '2rem', // Increased font size
+            textDecoration: 'none', // Remove underline
+          }}
+        >
+          EditVault
         </Typography>
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, ml: 'auto' }}>
@@ -45,8 +40,11 @@ const Navbar = ({ isLoggedIn, toggleTheme, isDarkMode }) => {
             to="/" 
             color="inherit"
             title="Home"
+            sx={{
+              color: isDarkMode ? 'white' : 'black', // Icon color changes based on theme
+            }}
           >
-            <Home />
+            <Home sx={{ fontSize: 30 }} /> {/* Increased icon size */}
           </IconButton>
 
           <IconButton
@@ -54,8 +52,11 @@ const Navbar = ({ isLoggedIn, toggleTheme, isDarkMode }) => {
             to="/cart"
             color="inherit"
             title="Cart"
+            sx={{
+              color: isDarkMode ? 'white' : 'black', // Icon color changes based on theme
+            }}
           >
-            <ShoppingCart />
+            <ShoppingCart sx={{ fontSize: 30 }} /> {/* Increased icon size */}
           </IconButton>
 
           <IconButton
@@ -63,33 +64,17 @@ const Navbar = ({ isLoggedIn, toggleTheme, isDarkMode }) => {
             to="/history"
             color="inherit"
             title="Download History"
+            sx={{
+              color: isDarkMode ? 'white' : 'black', // Icon color changes based on theme
+            }}
           >
-            <History />
+            <History sx={{ fontSize: 30 }} /> {/* Increased icon size */}
           </IconButton>
 
-          <IconButton
-            onClick={handleSettingsMenu}
-            color="inherit"
-            title="Settings"
-          >
-            <Settings />
+          <IconButton edge="end" color="inherit" onClick={toggleTheme}>
+            {isDarkMode ? <WbSunny sx={{ fontSize: 30, color: 'white' }} /> : <NightsStay sx={{ fontSize: 30, color: 'black' }} />}
+            {/* Toggle icon size */}
           </IconButton>
-
-          <Menu
-            anchorEl={settingsAnchor}
-            open={Boolean(settingsAnchor)}
-            onClose={handleSettingsClose}
-          >
-            <MenuItem onClick={toggleTheme}>
-              {isDarkMode ? 'Light Mode' : 'Dark Mode'}
-            </MenuItem>
-            <MenuItem component={Link} to="/account">Account Settings</MenuItem>
-            {isLoggedIn ? (
-              <MenuItem onClick={handleSettingsClose}>Logout</MenuItem>
-            ) : (
-              <MenuItem component={Link} to="/login">Login</MenuItem>
-            )}
-          </Menu>
         </Box>
       </Toolbar>
     </AppBar>

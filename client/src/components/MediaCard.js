@@ -1,90 +1,76 @@
-// src/components/MediaCard.jsx
-import React, { useState } from 'react';
-import { 
-  Card, 
-  CardMedia, 
-  CardContent, 
-  IconButton, 
-  Typography,
-  Box 
-} from '@mui/material';
-import { 
-  PlayArrow, 
-  Pause, 
-  AddShoppingCart,
-  Download 
-} from '@mui/icons-material';
+// MediaCard.js
+import React from 'react';
+import { Card, CardContent, Typography } from '@mui/material';
 
-const MediaCard = ({ item }) => {
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [isHovering, setIsHovering] = useState(false);
-
-  const handlePlay = () => {
-    setIsPlaying(!isPlaying);
-    // If it's an audio file
-    if (item.type === 'audio') {
-      const audio = document.getElementById(`audio-${item.id}`);
-      if (isPlaying) {
-        audio.pause();
-      } else {
-        audio.play();
-      }
+const MediaCard = ({ item, onClick }) => {
+  const renderMediaThumbnail = () => {
+    switch (item.type) {
+      case 'video':
+        return (
+          <video 
+            width="100%" 
+            height="200" 
+            controls 
+            poster={item.thumbnailPath || 'https://via.placeholder.com/300'}
+          >
+            <source src={item.filePath} type="video/mp4" />
+            Your browser does not support the video tag.
+          </video>
+        );
+      case 'audio':
+        return (
+          <audio 
+            controls 
+            style={{ width: '100%', height: 'auto' }}
+          >
+            <source src={item.filePath} type="audio/mpeg" />
+            Your browser does not support the audio element.
+          </audio>
+        );
+      case 'image':
+        return (
+          <img 
+            src={item.filePath} 
+            alt={item.title} 
+            width="100%" 
+            height="200" 
+            style={{ objectFit: 'cover' }} 
+          />
+        );
+      case 'gif':
+        return (
+          <img 
+            src={item.filePath} 
+            alt={item.title} 
+            width="100%" 
+            height="200" 
+            style={{ objectFit: 'cover' }} 
+          />
+        );
+      default:
+        return <img src="https://via.placeholder.com/300" alt="Placeholder" width="100%" />;
     }
   };
 
   return (
-    <Card
-      onMouseEnter={() => setIsHovering(true)}
-      onMouseLeave={() => setIsHovering(false)}
-      sx={{ position: 'relative' }}
-    >
-      {item.type === 'audio' && (
-        <audio id={`audio-${item.id}`} src={item.url} />
-      )}
-      
-      <CardMedia
-        component={item.type === 'image' ? 'img' : 'video'}
-        src={item.url}
-        height="200"
-        sx={{ objectFit: 'cover' }}
-      />
-      
-      {isHovering && (
-        <Box
-          sx={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            gap: 2
-          }}
-        >
-          <IconButton 
-            onClick={handlePlay}
-            sx={{ color: 'white' }}
-          >
-            {isPlaying ? <Pause /> : <PlayArrow />}
-          </IconButton>
-          <IconButton 
-            sx={{ color: 'white' }}
-          >
-            <AddShoppingCart />
-          </IconButton>
-          <IconButton 
-            sx={{ color: 'white' }}
-          >
-            <Download />
-          </IconButton>
-        </Box>
-      )}
-
-      <CardContent>
-        <Typography variant="body1">{item.title}</Typography>
+    <Card sx={{
+      height: '100%',
+      display: 'flex',
+      flexDirection: 'column',
+      transition: 'transform 0.2s',
+      '&:hover': {
+        transform: 'scale(1.02)',
+        boxShadow: 6
+      }
+    }} onClick={() => onClick(item)}>
+      {renderMediaThumbnail()}
+      <CardContent sx={{ flexGrow: 1 }}>
+        <Typography variant="h6" gutterBottom>
+          {item.title}
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          {item.description}
+        </Typography>
       </CardContent>
     </Card>
   );
