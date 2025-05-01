@@ -10,6 +10,7 @@ const FileList = () => {
   const [selectedFile, setSelectedFile] = useState(null); // To store the selected file for preview
   const [openModal, setOpenModal] = useState(false); // To control modal visibility
   const [loading, setLoading] = useState(true); // For loading state
+  const [error, setError] = useState(''); // For error messages
 
   // Fetch all files from the backend
   const fetchFiles = async () => {
@@ -17,11 +18,14 @@ const FileList = () => {
       const response = await axios.get('http://localhost:5000/api/files');
       if (response && response.data) {
         setFiles(response.data); // Update state with fetched files
+      } else {
+        setError('No files found.');
       }
-      setLoading(false); // Set loading to false once the files are fetched
     } catch (error) {
       console.error('Error fetching files:', error);
-      setLoading(false); // Set loading to false in case of error
+      setError('Failed to load files. Please try again later.');
+    } finally {
+      setLoading(false); // Set loading to false once the files are fetched or an error occurs
     }
   };
 
@@ -32,6 +36,7 @@ const FileList = () => {
       setFiles(files.filter(file => file._id !== id)); // Remove deleted file from state
     } catch (error) {
       console.error('Error deleting file:', error);
+      setError('Failed to delete the file. Please try again.');
     }
   };
 
@@ -61,10 +66,11 @@ const FileList = () => {
     }
 
     switch (file.type) {
-    case 'gif':
+      case 'gif':
       case 'image':
-        return <img
-            src={`http://localhost:5000/uploads/${file.filePath.split('/').pop()}`}  // Ensure this is a valid path
+        return (
+          <img
+            src={`http://localhost:5000/uploads/${file.filePath.split('/').pop()}`} // Ensure this is a valid path
             alt={file.title}
             onClick={() => handlePreviewClick(file)}
             style={{
@@ -75,6 +81,7 @@ const FileList = () => {
               objectFit: 'cover', // Ensures consistent preview size
             }}
           />
+        );
       case 'video':
         return (
           <img
@@ -114,6 +121,13 @@ const FileList = () => {
     <Box sx={{ maxWidth: '90%', mx: 'auto', mt: 4 }}>
       <Typography variant="h4" gutterBottom>Uploaded Files</Typography>
 
+      {/* Error message */}
+      {error && (
+        <Typography variant="body1" color="error" sx={{ mb: 2 }}>
+          {error}
+        </Typography>
+      )}
+
       {/* Loading state */}
       {loading ? (
         <LoadingSpinner />
@@ -127,35 +141,64 @@ const FileList = () => {
             files.map((file) => (
               file && file._id && ( // Add null checks here for each file
                 <Grid item xs={12} sm={6} md={4} key={file._id}>
-                  <Paper sx={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'center',
-                    padding: 2,
-                    borderRadius: 2,
-                    boxShadow: 3,
-                    backgroundColor: '#f4f4f4',
-                    textAlign: 'left', // Aligning the text to the left
-                    position: 'relative',
-                    height: '350px', // Fixed height for consistent preview size
-                    overflow: 'hidden',
-                    transition: 'transform 0.3s ease-in-out',
-                    '&:hover': {
-                      transform: 'scale(1.05)', // Zoom effect on hover
-                    },
-                  }}>
+                  <Paper
+                    sx={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'center',
+                      padding: 2,
+                      borderRadius: 2,
+                      boxShadow: 3,
+                      backgroundColor: '#f4f4f4',
+                      textAlign: 'left',
+                      position: 'relative',
+                      height: '350px',
+                      overflow: 'hidden',
+                      transition: 'transform 0.3s ease-in-out',
+                      '&:hover': {
+                        transform: 'scale(1.05)',
+                      },
+                    }}
+                  >
                     {/* File Preview */}
                     {renderPreview(file)}
 
-                    {/* File Title and Description */}
+                    {/* File Title */}
                     <Typography variant="h5" sx={{ marginBottom: 1 }}>
                       {file.title}
                     </Typography>
+
+                    {/* File Description */}
                     <Typography variant="h7" color="textSecondary" sx={{ marginBottom: 2 }}>
                       {file.description}
                     </Typography>
 
-                    {/* Delete Button in the bottom-right corner */}
+                    {/* File Tags */}
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, marginBottom: 2 }}>
+                      {file.tags && file.tags.length > 0 ? (
+                        file.tags.map((tag, index) => (
+                          <Typography
+                            key={index}
+                            variant="body2"
+                            sx={{
+                              backgroundColor: '#e0e0e0',
+                              padding: '4px 8px',
+                              borderRadius: '16px',
+                              fontSize: '0.875rem',
+                              color: '#424242',
+                            }}
+                          >
+                            {tag}
+                          </Typography>
+                        ))
+                      ) : (
+                        <Typography variant="body2" color="textSecondary">
+                          No tags available
+                        </Typography>
+                      )}
+                    </Box>
+
+                    {/* Delete Button */}
                     <IconButton
                       onClick={() => handleDelete(file._id)}
                       color="error"

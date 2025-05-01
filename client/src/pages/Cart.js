@@ -1,43 +1,21 @@
-// Cart.js
 import React from 'react';
-import { useCart } from '../components/CartContext';  // Import useCart from the context
 import { Container, Paper, List, ListItem, ListItemText, ListItemSecondaryAction, IconButton, Button, Typography, Box } from '@mui/material';
-import { Delete, CloudDownload } from '@mui/icons-material';
-import axios from 'axios';
+import { CloudDownload, Delete } from '@mui/icons-material';
 
-function Cart() {
-  const { cartItems, removeItemFromCart, updateDownloadHistory } = useCart();
+const Cart = () => {
+  const [cartItems, setCartItems] = React.useState([]);
 
-  const handleRemove = (id) => {
-    removeItemFromCart(id);
+  const removeItemFromCart = (id) => {
+    setCartItems(cartItems.filter(item => item.id !== id));
   };
 
-  const handleDownloadAll = async () => {
-  if (cartItems.length === 0) {
-    console.error('No items in the cart to download.');
-    return;
-  }
-
-  const cartItemIds = [...new Set(cartItems.map((item) => item.id))];
-
-  const zipDownloadUrl = `http://localhost:5000/api/download-zip?cartItems[]=${cartItemIds.join('&cartItems[]=')}`;
-
-  try {
-    const response = await axios.get(zipDownloadUrl, { responseType: 'blob' });
-
-    const blob = new Blob([response.data], { type: 'application/zip' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = 'cart-files.zip';
-    link.click();
-
-    // Record each individual file in download history
-    updateDownloadHistory(cartItems, true);
-  } catch (error) {
-    console.error('Error downloading the ZIP file:', error);
-    alert('An error occurred while downloading the files. Please try again.');
-  }
-};
+  const handleDownloadAll = () => {
+    if (cartItems.length === 0) {
+      console.error('No items in the cart to download.');
+      return;
+    }
+    console.log('Downloading all items as ZIP:', cartItems.map(item => item.name));
+  };
 
   return (
     <Container maxWidth="md" sx={{ mt: 4 }}>
@@ -51,7 +29,7 @@ function Cart() {
               <ListItem key={item.id}> {/* Unique key for each item */}
                 <ListItemText primary={item.name} secondary={item.description} />
                 <ListItemSecondaryAction>
-                  <IconButton edge="end" aria-label="delete" onClick={() => handleRemove(item.id)}>
+                  <IconButton edge="end" aria-label="delete" onClick={() => removeItemFromCart(item.id)}>
                     <Delete />
                   </IconButton>
                 </ListItemSecondaryAction>
@@ -74,6 +52,6 @@ function Cart() {
       </Paper>
     </Container>
   );
-}
+};
 
 export default Cart;

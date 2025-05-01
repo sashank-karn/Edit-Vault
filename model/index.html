@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Upload Media</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 600px;
+      margin: 40px auto;
+    }
+    .form-group {
+      margin-bottom: 16px;
+    }
+    .tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .tag {
+      display: inline-block;
+      background-color: #d21919;
+      color: white;
+      padding: 4px 8px;
+      border-radius: 16px;
+cursor: pointer;
+    }
+    .tag:hover {
+      background-color: #d21919;
+    }
+    .preview {
+      margin-top: 16px;
+    }
+    .preview img, .preview video {
+      max-width: 100%;
+      height: auto;
+    }
+    button {
+      display: block;
+      width: 100%;
+      margin-top: 16px;
+      padding: 10px;
+      background-color: #d21919;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+<body>
+  <h1>Upload Media</h1>
+  <div class="form-group">
+    <label for="fileInput">Select File</label>
+    <input type="file" id="fileInput">
+  </div>
+  <div class="preview" id="previewContainer"></div>
+  <button id="uploadButton" disabled>Upload File</button>
+  <div id="results" style="margin-top: 20px;">
+    <h3>Results</h3>
+    <p><strong>Caption:</strong> <span id="caption"></span></p>
+    <p><strong>Tags:</strong> <span id="tags"></span></p>
+    <p><strong>Celebrity:</strong> <span id="celebrity"></span></p>
+  </div>
+
+  <script>
+    const fileInput = document.getElementById('fileInput');
+    const previewContainer = document.getElementById('previewContainer');
+    const uploadButton = document.getElementById('uploadButton');
+    const captionElement = document.getElementById('caption');
+    const tagsElement = document.getElementById('tags');
+    const celebrityElement = document.getElementById('celebrity');
+
+    let selectedFile = null;
+
+    fileInput.addEventListener('change', (event) => {
+      selectedFile = event.target.files[0];
+      if (selectedFile) {
+        const fileURL = URL.createObjectURL(selectedFile);
+        if (selectedFile.type.startsWith('image')) {
+          previewContainer.innerHTML = `<img src="${fileURL}" alt="Preview">`;
+        } else if (selectedFile.type.startsWith('video')) {
+          previewContainer.innerHTML = `<video src="${fileURL}" controls></video>`;
+        } else {
+          previewContainer.innerHTML = `<p>File preview not available</p>`;
+        }
+        uploadButton.disabled = false;
+      } else {
+        previewContainer.innerHTML = '';
+        uploadButton.disabled = true;
+      }
+    });
+
+    uploadButton.addEventListener('click', async () => {
+      if (!selectedFile) return;
+
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+
+      try {
+        const response = await fetch('http://localhost:5500/process-file', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          captionElement.textContent = data.caption || 'No caption generated';
+          tagsElement.textContent = data.tags ? data.tags.join(', ') : 'No tags generated';
+          celebrityElement.textContent = data.celebrity || 'No celebrity recognized';
+        } else {
+          const error = await response.json();
+          alert(`Error: ${error.error}`);
+        }
+      } catch (error) {
+        console.error('Error uploading file:', error);
+        alert('Failed to upload file. Please try again.');
+      }
+    });
+  </script>
+</body>
+</html>

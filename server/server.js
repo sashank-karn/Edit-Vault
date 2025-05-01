@@ -5,110 +5,93 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs'); // For deleting files from the filesystem
+const fs = require('fs');
 const ffmpeg = require('fluent-ffmpeg');
 const ffmpegPath = require('@ffmpeg-installer/ffmpeg');
-const JSZip = require('jszip');  // Import JSZip
+const JSZip = require('jszip');
+const { spawn } = require('child_process'); // Import spawn to run Python scripts
 
 ffmpeg.setFfmpegPath(ffmpegPath.path);
 
-// Set up express app
 const app = express();
 const port = 5000;
 
-// Middleware
 app.use(cors());
 app.use(bodyParser.json());
 app.use('/uploads', express.static('uploads'));
 
-// MongoDB connection URI
 const mongoURI = process.env.MONGO_URI;
 if (!mongoURI) {
     console.error("MongoDB URI is not defined in the .env file!");
     process.exit(1);
 }
 
-// MongoDB connection
 mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
     .then(() => console.log('MongoDB Atlas connected'))
     .catch(err => console.log('Error connecting to MongoDB Atlas:', err));
 
-// Define Schema and Model
 const fileSchema = new mongoose.Schema({
     title: { type: String, required: true },
     type: { type: String, required: true },
     description: { type: String, required: true },
     filePath: { type: String, required: true },
-    thumbnailPath: { type: String }, // Add this line for videos
+    thumbnailPath: { type: String },
+    tags: { type: [String], default: [] }, // Add tags field
 });
+
 const File = mongoose.model('File', fileSchema);
 
-// Multer setup for file upload with validation
 const allowedFileTypes = [
-    'video/mp4', 'video/mkv', 'video/avi', 
+    'video/mp4', 'video/mkv', 'video/avi',
     'image/jpeg', 'image/png', 'image/jpg', 'image/gif',
     'audio/mp3', 'audio/wav', 'audio/mpeg'
-]; // Include audio and gif
+];
 
-const maxFileSize = 50 * 1024 * 1024; // Limit upload size to 50MB
+const maxFileSize = 50 * 1024 * 1024;
 
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
         cb(null, './uploads');
     },
     filename: function (req, file, cb) {
-        cb(null, Date.now() + path.extname(file.originalname));  // Ensure unique filename
+        cb(null, Date.now() + path.extname(file.originalname));
     }
 });
 
 const upload = multer({
     storage: storage,
-    limits: { fileSize: maxFileSize }, // Limit file size
+    limits: { fileSize: maxFileSize },
     fileFilter: function (req, file, cb) {
         if (!allowedFileTypes.includes(file.mimetype)) {
-            return cb(new Error('Invalid file type. Only video, audio, image, and gif files are allowed.'));
+            return cb(new Error('Invalid file type.'));
         }
         cb(null, true);
     }
 });
 
-// Function to generate a thumbnail from a video
 const generateThumbnail = (videoPath) => {
     return new Promise((resolve, reject) => {
-        const normalizedVideoPath = path.resolve(videoPath);  // Use path.resolve for absolute path
-        const thumbnailFileName = `${Date.now()}_thumbnail.png`;  // Unique filename for the thumbnail
+        const thumbnailFileName = `${Date.now()}_thumbnail.png`;
         const thumbnailsDir = path.join(__dirname, 'uploads', 'thumbnails');
 
-        // Ensure the thumbnails directory exists
         if (!fs.existsSync(thumbnailsDir)) {
             fs.mkdirSync(thumbnailsDir, { recursive: true });
         }
 
-        const thumbnailPath = path.join(thumbnailsDir, thumbnailFileName);  // Full path for the thumbnail
+        const thumbnailPath = path.join(thumbnailsDir, thumbnailFileName);
 
-        console.log("Attempting to generate thumbnail from video at:", normalizedVideoPath);
-
-        // Run ffmpeg to generate the thumbnail
-        ffmpeg(normalizedVideoPath)
-            .setFfmpegPath(ffmpegPath.path)  // Ensure ffmpeg path is set
-            .seekInput(5)                    // Set time to extract the thumbnail (5 seconds)
-            .frames(1)                       // Capture a single frame
-            .size('1280x720')                // Set the thumbnail size
-            .output(thumbnailPath)           // Output the thumbnail
-            .on('end', () => {
-                console.log('Thumbnail generated successfully at:', thumbnailPath);
-                const thumbnailUrl = `/uploads/thumbnails/${thumbnailFileName}`;  // URL for thumbnail
-                resolve(thumbnailUrl);  // Return the thumbnail URL
-            })
-            .on('error', (err) => {
-                console.error('Error generating thumbnail:', err.message);  // Log the error message
-                reject(new Error(`Failed to generate thumbnail: ${err.message}`));
-            })
+        ffmpeg(videoPath)
+            .setFfmpegPath(ffmpegPath.path)
+            .seekInput(5)
+            .frames(1)
+            .size('1280x720')
+            .output(thumbnailPath)
+            .on('end', () => resolve(`/uploads/thumbnails/${thumbnailFileName}`))
+            .on('error', (err) => reject(err))
             .run();
     });
 };
 
-// Route to upload a file with metadata
 app.post('/api/upload', upload.single('file'), async (req, res) => {
     if (!req.file) {
         return res.status(400).json({ message: 'No file uploaded' });
@@ -120,77 +103,139 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
     const newFile = new File({
         title: metadata.title,
         type: metadata.type,
-        description: metadata.description,
-        filePath: filePath
+        description: metadata.description, // Initial description
+        filePath: filePath,
+        tags: metadata.tags, // Initial tags
     });
 
     try {
-        // Check if the uploaded file is a video
+        // Generate a thumbnail if the file is a video
         if (metadata.type.startsWith('video/')) {
-            // Generate the thumbnail for video files
             const thumbnailUrl = await generateThumbnail(path.join(__dirname, 'uploads', req.file.filename));
-
-            // Save the thumbnail URL in the file metadata
             newFile.thumbnailPath = thumbnailUrl;
         }
 
+        // Save the file metadata to the database
         const savedFile = await newFile.save();
-        res.json(savedFile);  // Return the saved file with the thumbnail URL (if applicable)
+
+        // Send the saved file metadata back to the frontend
+        res.json({
+            title: savedFile.title,
+            type: savedFile.type,
+            description: savedFile.description,
+            filePath: savedFile.filePath,
+            thumbnailPath: savedFile.thumbnailPath,
+            tags: savedFile.tags, // Include the initial tags in the response
+        });
     } catch (error) {
         console.error('Error saving file details:', error);
         res.status(500).json({ message: 'Error saving file details', error });
     }
 });
 
-// Route to fetch all files with optional filter and search
-app.get('/api/files', async (req, res) => {
-    const { type, search, limit, skip } = req.query;
-    let filter = {};
+// Route to auto-generate tags, captions, and celebrity names
+app.post('/api/generate-tags', upload.single('file'), async (req, res) => {
+    if (!req.file) {
+        return res.status(400).json({ message: 'No file uploaded for tag generation' });
+    }
 
-    if (type) filter.type = type;
-    if (search) filter.$or = [
-        { title: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } }
-    ];
-
-    const limitNumber = parseInt(limit) || 50;  // Default to 50 files
-    const skipNumber = parseInt(skip) || 0;    // Default to no skipped files
+    const filePath = path.join(__dirname, 'uploads', req.file.filename);
 
     try {
-        const files = await File.find(filter)
-            .skip(skipNumber)
-            .limit(limitNumber);
+        // Spawn the Python process
+        const pythonProcess = spawn('python', ['../model/z1.py', filePath]);
 
-        res.json(files);
-    } catch (error) {
-        console.error('Error fetching files:', error);
-        res.status(500).json({ message: 'Error fetching files', error });
+        let output = '';
+        let errorLogs = '';
+
+        // Collect JSON output from stdout
+        pythonProcess.stdout.on('data', (data) => {
+            output += data.toString();
+        });
+
+        // Collect logs from stderr (limit log size to avoid memory issues)
+        pythonProcess.stderr.on('data', (data) => {
+            if (errorLogs.length < 1000) { // Limit log size to 1000 characters
+                errorLogs += data.toString();
+            }
+            console.error('Python script log:', data.toString()); // Log to server console
+        });
+
+        // Handle process close event
+        pythonProcess.on('close', (code) => {
+            if (code === 0) {
+                try {
+                    // Parse the JSON output from the Python script
+                    const result = JSON.parse(output.trim());
+                    console.log('Python script output:', result); // Debug log
+
+                    // Extract tags, caption, and celebrity
+                    const { tags, caption, celebrity } = result;
+
+                    // Filter out invalid tags and "No celebrity recognized"
+                    const filteredTags = tags.filter(tag => tag && tag !== "No celebrity recognized");
+
+                    // Only include the celebrity if it is recognized
+                    const recognizedCelebrity = celebrity !== "No celebrity recognized" ? celebrity : null;
+
+                    // Send the filtered result back to the frontend
+                    res.json({
+                        tags: filteredTags,
+                        caption: caption,
+                        celebrity: recognizedCelebrity, // Send null if not recognized
+                    });
+                } catch (err) {
+                    console.error('Error parsing Python output:', err);
+                    res.status(500).json({ message: 'Error parsing Python output' });
+                }
+            } else {
+                console.error('Python script exited with code:', code);
+                res.status(500).json({ message: 'Error generating tags', logs: errorLogs });
+            }
+        });
+    } catch (err) {
+        console.error('Error running Python script:', err);
+        res.status(500).json({ message: 'Internal server error' });
     }
 });
 
-// Route to delete a file by its ID
+app.get('/api/files', async (req, res) => {
+    try {
+        const files = await File.find(); // Fetch all files from the database
+        res.json(files); // Send the files as a JSON response
+    } catch (error) {
+        console.error('Error fetching files:', error);
+        res.status(500).json({ message: 'Error fetching files' });
+    }
+});
+
 app.delete('/api/files/:id', async (req, res) => {
     const { id } = req.params;
 
     try {
+        // Find the file by ID
         const file = await File.findById(id);
         if (!file) {
             return res.status(404).json({ message: 'File not found' });
         }
 
-        // Delete the main file and its thumbnail (if it exists)
+        // Delete the file from the file system
         const filePath = path.join(__dirname, 'uploads', path.basename(file.filePath));
-        const thumbnailPath = file.thumbnailPath ? path.join(__dirname, 'uploads', 'thumbnails', path.basename(file.thumbnailPath)) : null;
-
         if (fs.existsSync(filePath)) {
-            fs.unlinkSync(filePath);  // Synchronously delete file
+            fs.unlinkSync(filePath);
         }
 
-        if (thumbnailPath && fs.existsSync(thumbnailPath)) {
-            fs.unlinkSync(thumbnailPath);  // Synchronously delete thumbnail
+        // Delete the thumbnail if it exists
+        if (file.thumbnailPath) {
+            const thumbnailPath = path.join(__dirname, file.thumbnailPath);
+            if (fs.existsSync(thumbnailPath)) {
+                fs.unlinkSync(thumbnailPath);
+            }
         }
 
+        // Delete the file from the database
         await File.findByIdAndDelete(id);
+
         res.json({ message: 'File deleted successfully' });
     } catch (error) {
         console.error('Error deleting file:', error);
@@ -198,60 +243,6 @@ app.delete('/api/files/:id', async (req, res) => {
     }
 });
 
-// Endpoint to serve files directly with download headers
-app.get('/api/uploads/:fileName', (req, res) => {
-    const fileName = req.params.fileName;
-    const filePath = path.join(__dirname, 'uploads', fileName);
-
-    res.download(filePath, fileName, (err) => {
-        if (err) {
-            console.error('Error during file download:', err);
-            res.status(500).json({ message: 'File download failed' });
-        }
-    });
-});
-
-// Endpoint for downloading selected files as a ZIP
-app.get('/api/download-zip', async (req, res) => {
-    const cartItemIds = req.query.cartItems;  // Array of MongoDB ObjectIds from the cart page
-  
-    if (!cartItemIds || cartItemIds.length === 0) {
-        return res.status(400).json({ message: 'No files selected' });
-    }
-  
-    const zip = new JSZip();
-    
-    try {
-        const files = await File.find({ '_id': { $in: cartItemIds } });
-  
-        if (!files || files.length === 0) {
-            return res.status(404).json({ message: 'No files found for the provided IDs' });
-        }
-  
-        files.forEach(file => {
-            const fileName = path.basename(file.filePath);  // Extract filename
-            const filePath = path.join(__dirname, 'uploads', fileName);  // Full file path
-    
-            if (fs.existsSync(filePath)) {
-                const fileData = fs.readFileSync(filePath);  // Read file data
-                zip.file(file.title + path.extname(file.filePath), fileData);  // Add to ZIP
-            } else {
-                console.error(`File ${file.title} not found at ${filePath}`);
-            }
-        });
-  
-        const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' });
-  
-        res.set('Content-Type', 'application/zip');
-        res.set('Content-Disposition', 'attachment; filename=cart-files.zip');
-        res.send(zipBuffer);
-    } catch (error) {
-        console.error('Error generating ZIP file:', error);
-        res.status(500).json({ message: 'Error generating ZIP file', error });
-    }
-});
-
-// Start server
 app.listen(port, () => {
     console.log(`Server running on http://localhost:${port}`);
 });

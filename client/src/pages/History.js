@@ -1,28 +1,16 @@
 import React from 'react';
-import { useCart } from '../components/CartContext';
 import { Container, Paper, List, ListItem, ListItemText, IconButton, Typography, Button, Box } from '@mui/material';
 import { CloudDownload, Delete } from '@mui/icons-material';
 
 const History = () => {
-  const { downloadHistory, clearDownloadHistory, updateDownloadHistory } = useCart();
+  const [downloadHistory, setDownloadHistory] = React.useState([]);
 
-  // Function to handle file download again
+  const clearDownloadHistory = () => {
+    setDownloadHistory([]);
+  };
+
   const handleDownload = (item) => {
-    if (!item.filePath) {
-      console.error('File path is missing');
-      return;
-    }
-    const downloadUrl = `http://localhost:5000/api/uploads/${item.filePath.split('/').pop()}`;
-
-    const link = document.createElement('a');
-    link.href = downloadUrl;
-    link.setAttribute('download', item.title);
-    link.style.display = 'none';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    updateDownloadHistory(item, false);
+    console.log(`Downloading: ${item.name}`);
   };
 
   return (

@@ -1,16 +1,28 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   AppBar, 
   Toolbar, 
   IconButton, 
   Typography, 
-  Box 
+  Box, 
+  TextField, 
+  Button 
 } from '@mui/material';
 import { Link } from 'react-router-dom';
 import { WbSunny, NightsStay } from '@mui/icons-material'; 
 import { Home, ShoppingCart, History } from '@mui/icons-material';
 
-const Navbar = ({ isLoggedIn, toggleTheme, isDarkMode }) => {
+const Navbar = ({ isLoggedIn, toggleTheme, isDarkMode, onSearch }) => {
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const handleSearchChange = (event) => {
+    setSearchQuery(event.target.value);
+  };
+
+  const handleSearchClick = () => {
+    onSearch(searchQuery);
+  };
+
   return (
     <AppBar 
       position="static" 
@@ -18,7 +30,7 @@ const Navbar = ({ isLoggedIn, toggleTheme, isDarkMode }) => {
         backgroundColor: '#8B0000', // Dark blood red color for the background
       }}
     >
-      <Toolbar>
+      <Toolbar sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Typography 
           variant="h6" 
           component={Link}  // Wrap the Typography with Link
@@ -34,7 +46,24 @@ const Navbar = ({ isLoggedIn, toggleTheme, isDarkMode }) => {
           EditVault
         </Typography>
 
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, ml: 'auto' }}>
+        {/* Search Bar Centered */}
+        <Box sx={{ flexGrow: 1, display: 'flex', justifyContent: 'center'}}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, backgroundColor: 'white', borderRadius: 3, padding: '5px', maxWidth: 500 }}>
+            <TextField
+              variant="outlined"
+              placeholder="Search"
+              size="small"
+              value={searchQuery}
+              onChange={handleSearchChange}
+              sx={{ flexGrow: 1 }}
+            />
+            <Button variant="contained" color="primary" onClick={handleSearchClick} sx={{borderRadius: 3}}>
+              Search
+            </Button>
+          </Box>
+        </Box>
+
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <IconButton 
             component={Link} 
             to="/" 

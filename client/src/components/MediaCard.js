@@ -1,8 +1,9 @@
-// MediaCard.js
 import React from 'react';
-import { Card, CardContent, Typography } from '@mui/material';
+import { Card, CardContent, Typography, CardActions, IconButton, Chip, Stack } from '@mui/material';
+import DownloadIcon from '@mui/icons-material/Download';
+import AddShoppingCartIcon from '@mui/icons-material/AddShoppingCart';
 
-const MediaCard = ({ item, onClick }) => {
+const MediaCard = ({ item, onClick, onDownload, onAddToCart }) => {
   const renderMediaThumbnail = () => {
     switch (item.type) {
       case 'video':
@@ -28,15 +29,6 @@ const MediaCard = ({ item, onClick }) => {
           </audio>
         );
       case 'image':
-        return (
-          <img 
-            src={item.filePath} 
-            alt={item.title} 
-            width="100%" 
-            height="200" 
-            style={{ objectFit: 'cover' }} 
-          />
-        );
       case 'gif':
         return (
           <img 
@@ -44,7 +36,8 @@ const MediaCard = ({ item, onClick }) => {
             alt={item.title} 
             width="100%" 
             height="200" 
-            style={{ objectFit: 'cover' }} 
+            style={{ objectFit: 'cover', cursor: 'pointer' }}
+            onClick={() => onClick(item)} 
           />
         );
       default:
@@ -62,7 +55,7 @@ const MediaCard = ({ item, onClick }) => {
         transform: 'scale(1.02)',
         boxShadow: 6
       }
-    }} onClick={() => onClick(item)}>
+    }}>
       {renderMediaThumbnail()}
       <CardContent sx={{ flexGrow: 1 }}>
         <Typography variant="h6" gutterBottom>
@@ -71,7 +64,23 @@ const MediaCard = ({ item, onClick }) => {
         <Typography variant="body2" color="text.secondary">
           {item.description}
         </Typography>
+        {/* Display tags */}
+        {item.tags && (
+          <Stack direction="row" spacing={1} sx={{ mt: 2 }}>
+            {item.tags.map((tag, index) => (
+              <Chip key={index} label={tag} variant="outlined" />
+            ))}
+          </Stack>
+        )}
       </CardContent>
+      <CardActions sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, padding: '8px' }}>
+        <IconButton color="primary" onClick={() => onDownload(item)}>
+          <DownloadIcon />
+        </IconButton>
+        <IconButton color="primary" onClick={() => onAddToCart(item)}>
+          <AddShoppingCartIcon />
+        </IconButton>
+      </CardActions>
     </Card>
   );
 };

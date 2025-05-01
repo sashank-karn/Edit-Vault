@@ -1,35 +1,37 @@
 import React, { useState } from 'react';
+import { TextField, Button, MenuItem, Box, Typography, CardMedia, Chip, CircularProgress, Alert } from '@mui/material';
 import axios from 'axios';
-import { TextField, Button, MenuItem, Box, Typography, CardMedia, CircularProgress } from '@mui/material';
-
-const audioPlaceholder = 'http://localhost:5000/uploads/AudioPlaceHolder.jpeg';
 
 const Upload = () => {
   const [file, setFile] = useState(null);
-  const [metadata, setMetadata] = useState({ title: '', description: '', type: '' });
+  const [metadata, setMetadata] = useState({ title: '', description: '', type: '', tags: [] });
   const [preview, setPreview] = useState(null);
-  const [uploading, setUploading] = useState(false); // State to track the uploading status
-  const [uploadSuccess, setUploadSuccess] = useState(false); // State to track upload success
+  const [tagInput, setTagInput] = useState('');
+  const [uploading, setUploading] = useState(false); // For upload state
+  const [generatingTags, setGeneratingTags] = useState(false); // For auto-generate tags state
+  const [error, setError] = useState(''); // For validation errors
+  const [successMessage, setSuccessMessage] = useState(''); // For success messages
 
   const handleFileChange = (event) => {
     const selectedFile = event.target.files[0];
     setFile(selectedFile);
-    setUploadSuccess(false); // Reset success state when a new file is selected
+
+    // Reset all fields and preview when a new file is selected
+    setMetadata({ title: '', description: '', type: '', tags: [] });
+    setPreview(null);
+    setTagInput('');
+    setError('');
+    setSuccessMessage('');
 
     if (selectedFile) {
       const fileURL = URL.createObjectURL(selectedFile);
-
       if (selectedFile.type.startsWith('image') || selectedFile.type === 'image/gif') {
-        setPreview(<CardMedia component="img" image={fileURL} alt="Preview" height="140" />);
+        setPreview(<CardMedia component="img" image={fileURL} alt="Preview" height="200" />);
       } else if (selectedFile.type.startsWith('video')) {
-        setPreview(<CardMedia component="video" src={fileURL} controls height="140" />);
-      } else if (selectedFile.type.startsWith('audio')) {
-        setPreview(<CardMedia component="img" image={audioPlaceholder} alt="Audio Placeholder" height="140" />);
+        setPreview(<CardMedia component="video" src={fileURL} controls height="200" />);
       } else {
         setPreview(<Typography>File preview not available</Typography>);
       }
-    } else {
-      setPreview(null);
     }
   };
 
@@ -38,35 +40,131 @@ const Upload = () => {
     setMetadata((prevMetadata) => ({ ...prevMetadata, [name]: value }));
   };
 
-  const handleUpload = async () => {
-    if (!file) return;
+  const handleTagChange = (event) => {
+    setTagInput(event.target.value);
+  };
 
-    setUploading(true); // Start the upload process
-    setUploadSuccess(false); // Reset success state before uploading
+  const addTag = () => {
+    if (tagInput.trim() !== '' && !metadata.tags.includes(tagInput.trim())) {
+      setMetadata((prevMetadata) => ({ ...prevMetadata, tags: [...prevMetadata.tags, tagInput.trim()] }));
+      setTagInput('');
+    }
+  };
+
+  const removeTag = (tagToRemove) => {
+    setMetadata((prevMetadata) => ({
+      ...prevMetadata,
+      tags: prevMetadata.tags.filter(tag => tag !== tagToRemove)
+    }));
+  };
+
+  const validateFields = () => {
+    if (!metadata.title || !metadata.description || !metadata.type) {
+      setError('All fields (Title, Description, and Type) are required.');
+      return false;
+    }
+    setError('');
+    return true;
+  };
+
+  const handleAutoGenerateTags = async () => {
+    if (!file) {
+      setError('Please select a file first.');
+      return;
+    }
+
+    setGeneratingTags(true);
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await axios.post('http://localhost:5000/api/generate-tags', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      console.log('Generated tags response:', response.data); // Debug log
+
+      const { tags, caption, celebrity } = response.data;
+
+      // Update metadata with generated tags and caption
+      setMetadata((prevMetadata) => ({
+        ...prevMetadata,
+        description: `${prevMetadata.description} ${caption || ''}`.trim(),
+        tags: [...new Set([...prevMetadata.tags, ...tags, celebrity].filter(Boolean))], // Avoid duplicates
+      }));
+    } catch (error) {
+      console.error('Error generating tags:', error);
+    } finally {
+      setGeneratingTags(false);
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!file) {
+      setError('Please select a file first.');
+      return;
+    }
+
+    if (!validateFields()) {
+      return;
+    }
+
+    setUploading(true);
 
     const formData = new FormData();
     formData.append('file', file);
     formData.append('metadata', JSON.stringify(metadata));
 
     try {
-      await axios.post('http://localhost:5000/api/upload', formData, {
+      const response = await axios.post('http://localhost:5000/api/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      setUploading(false);
-      setUploadSuccess(true); // Set upload success to true
+
+      console.log('Upload response:', response.data); // Debug log
+
+      // Show success message and refresh the page
+      setSuccessMessage('File uploaded successfully!');
       setTimeout(() => {
-        setUploadSuccess(false); // Optionally hide the success message after a few seconds
-      }, 3000);
+        window.location.reload(); // Refresh the page after 2 seconds
+      }, 2000);
     } catch (error) {
-      setUploading(false);
       console.error('Error uploading file:', error);
-      alert('File upload failed');
+      setError('Failed to upload file.');
+    } finally {
+      setUploading(false);
     }
   };
 
   return (
-    <Box sx={{ maxWidth: 600, mx: 'auto', mt: 4 }}>
-      <Typography variant="h4" gutterBottom>Upload Media</Typography>
+    <Box sx={{ maxWidth: 800, mx: 'auto', mt: 4 }}>
+      {successMessage && (
+        <Alert severity="success" sx={{ mb: 2 }}>
+          {successMessage}
+        </Alert>
+      )}
+
+      {preview && (
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="h6">Preview</Typography>
+          {preview}
+        </Box>
+      )}
+
+      <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+        <Button variant="contained" component="label">
+          Select File
+          <input type="file" hidden onChange={handleFileChange} />
+        </Button>
+        <Button
+          variant="contained"
+          color="secondary"
+          onClick={handleAutoGenerateTags}
+          disabled={generatingTags} // Use generatingTags state here
+        >
+          {generatingTags ? <CircularProgress size={24} /> : 'Auto Generate'}
+        </Button>
+      </Box>
 
       <TextField
         label="Title"
@@ -75,20 +173,7 @@ const Upload = () => {
         onChange={handleMetadataChange}
         fullWidth
         margin="normal"
-        autoComplete="off"
-        sx={{
-          '& .MuiOutlinedInput-root': {
-            '& fieldset': { borderColor: 'rgba(0, 0, 0, 0.23)' },
-            '&:hover fieldset': { borderColor: 'black' },
-            '&.Mui-focused fieldset': { borderColor: 'black' },
-          },
-          '& .MuiOutlinedInput-root.Mui-focused': {
-            outline: 'none',
-            boxShadow: 'none', // Ensure boxShadow is removed when focused
-          },
-        }}
       />
-
       <TextField
         label="Description"
         name="description"
@@ -96,20 +181,7 @@ const Upload = () => {
         onChange={handleMetadataChange}
         fullWidth
         margin="normal"
-        autoComplete="off"
-        sx={{
-          '& .MuiOutlinedInput-root': {
-            '& fieldset': { borderColor: 'rgba(0, 0, 0, 0.23)' },
-            '&:hover fieldset': { borderColor: 'black' },
-            '&.Mui-focused fieldset': { borderColor: 'black' },
-          },
-          '& .MuiOutlinedInput-root.Mui-focused': {
-            outline: 'none',
-            boxShadow: 'none', // Ensure boxShadow is removed when focused
-          },
-        }}
       />
-
       <TextField
         select
         label="Type"
@@ -118,18 +190,6 @@ const Upload = () => {
         onChange={handleMetadataChange}
         fullWidth
         margin="normal"
-        autoComplete="off"
-        sx={{
-          '& .MuiOutlinedInput-root': {
-            '& fieldset': { borderColor: 'rgba(0, 0, 0, 0.23)' },
-            '&:hover fieldset': { borderColor: 'black' },
-            '&.Mui-focused fieldset': { borderColor: 'black' },
-          },
-          '& .MuiOutlinedInput-root.Mui-focused': {
-            outline: 'none',
-            boxShadow: 'none', // Ensure boxShadow is removed when focused
-          },
-        }}
       >
         <MenuItem value="image">Image</MenuItem>
         <MenuItem value="gif">GIF</MenuItem>
@@ -137,24 +197,29 @@ const Upload = () => {
         <MenuItem value="audio">Audio</MenuItem>
       </TextField>
 
-      <Button
-        variant="contained"
-        component="label"
-        fullWidth
-        sx={{
-          mt: 2,
-          '&:focus': { outline: 'none' }, // Removes focus outline on button click
-        }}
-      >
-        Select File
-        <input type="file" hidden onChange={handleFileChange} />
-      </Button>
+      <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
+        <TextField
+          label="Add Tag"
+          value={tagInput}
+          onChange={handleTagChange}
+          fullWidth
+          onKeyDown={(e) => e.key === 'Enter' && addTag()}
+        />
+        <Button variant="contained" onClick={addTag}>
+          Add Tag
+        </Button>
+      </Box>
 
-      {preview && (
-        <Box sx={{ mt: 2 }}>
-          <Typography variant="h6">Preview</Typography>
-          {preview}
-        </Box>
+      <Box sx={{ mt: 2 }}>
+        {metadata.tags.map((tag, index) => (
+          <Chip key={index} label={tag} onDelete={() => removeTag(tag)} sx={{ m: 0.5 }} />
+        ))}
+      </Box>
+
+      {error && (
+        <Alert severity="error" sx={{ mt: 2 }}>
+          {error}
+        </Alert>
       )}
 
       <Button
@@ -162,30 +227,11 @@ const Upload = () => {
         color="primary"
         onClick={handleUpload}
         fullWidth
-        sx={{
-          mt: 2,
-          '&:focus': { outline: 'none' }, // Removes focus outline on button click
-        }}
-        disabled={!file || uploading}
+        sx={{ mt: 2 }}
+        disabled={uploading} // Use uploading state here
       >
-        {uploading ? (
-          <CircularProgress size={24} sx={{ color: 'white', mr: 1 }} />
-        ) : (
-          'Upload'
-        )}
+        {uploading ? <CircularProgress size={24} /> : 'Upload'}
       </Button>
-
-      {uploading && (
-        <Typography variant="body2" sx={{ mt: 2 }}>
-          Uploading...
-        </Typography>
-      )}
-
-      {uploadSuccess && (
-        <Typography variant="body2" sx={{ mt: 2, color: 'green' }}>
-          File uploaded successfully!
-        </Typography>
-      )}
     </Box>
   );
 };
